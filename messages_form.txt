@@ -1,0 +1,10 @@
+Messages Form:
+
+# Related to heater function
+<command=HF,enabled=[true | false],phase=[heat | preserve | rest]>
+
+# Related to Current Profile
+<command=PU,id=150,heat=4294967295,preserve=4294967295,rest=4294967295>
+
+# Related to Debugging - Return System's state
+<command=debug>
