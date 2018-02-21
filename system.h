@@ -19,9 +19,10 @@ typedef struct {
   Profile p;
 } System;
 
-///// Message Types /////
+///// Message Command Types /////
 const char* HEATER_FUNCTION = "HF";
 const char* PROFILE_UPDATE = "PU";
+const char* DEBUG = "debug";
 
 ///// Interval Type Constants /////
 const char* ID_TYPE = "id";
@@ -121,18 +122,18 @@ void restartHeatPhase(System *sys) {
   sys->phase = HEAT;
 }
 
-Phase stringToPhaseType(char *typeAsString){
-  if(strcmp(typeAsString, "heat") == 0){
+Phase stringToPhaseType(char *typeAsString) {
+  if (strcmp(typeAsString, "heat") == 0) {
     return HEAT;
   }
-  else if(strcmp(typeAsString, "preserve") == 0){
+  else if (strcmp(typeAsString, "preserve") == 0) {
     return PRESERVE;
   }
-  else if(strcmp(typeAsString, "rest") == 0){
+  else if (strcmp(typeAsString, "rest") == 0) {
     return REST;
   }
-  else{
-    return NULL; 
+  else {
+    return NULL;
   }
 }
 
@@ -154,7 +155,9 @@ void processHeaterFunctionMessage(char* message, System *sys) {
       }
       else if (strcmp(nameToken, PHASE_TYPE) == 0) {
         Phase phase = stringToPhaseType(valToken);
-        sys->phase = phase;
+        if (phase) {
+          sys->phase = phase;
+        }
       }
       else {
         Serial.println("Unknown variable:" + String(nameToken));
@@ -178,12 +181,27 @@ void processProfileActivationMessage(char* message, Profile *p) {
     nameToken = strtok(NULL, EQUALS);
   }
 }
+
+void debugSystemState(System *sys) {
+  Serial.println("\n--- DEBUG ---");
+  Serial.println("System Enabled:" + String(sys->enabled));
+  Serial.println("System Phase:" + String(sys->phase));
+  Serial.println("Id:" + String(sys->p.id) );
+  Serial.println("Heat:" + String(sys->p.heat));
+  Serial.println("Preserve:" + String(sys->p.preserve));
+  Serial.println("Rest:" + String(sys->p.rest));
+  Serial.println("--- END DEBUG ---\n");
+}
+
 void processMessage(char* type, char* message, System *sys) {
   if (strcmp(type, HEATER_FUNCTION) == 0) {
     processHeaterFunctionMessage(message, sys);
   }
   else if (strcmp(type, PROFILE_UPDATE) == 0) {
     processProfileActivationMessage(message, &sys->p);
+  }
+  else if (strcmp(type, DEBUG) == 0) {
+    debugSystemState(sys);
   }
   else {
     Serial.println("Unknown message type:" + String(type));
@@ -211,20 +229,6 @@ void parseMessage(System *sys) {
     }
   }
 }
-
-void debugSystemState(System *sys) {
-  Serial.println("--- DEBUG ---");
-
-  Serial.println("systemEnabled:" + String(sys->enabled));
-  Serial.println("id:" + String(sys->p.id) );
-  Serial.println("phase:" + String(sys->phase));
-  Serial.println("heat:" + String(sys->p.heat));
-  Serial.println("preserve:" + String(sys->p.preserve));
-  Serial.println("rest:" + String(sys->p.rest));
-
-  Serial.println("--- END DEBUG ---");
-}
-
 
 void heaterLoop(System *sys) {
   if (sys->enabled) {
