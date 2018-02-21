@@ -13,6 +13,7 @@ typedef struct {
 
 void receiveMessage(MessageBuffer *mb) {
   char inChar;
+  
   while (Serial.available() > 0) {
     inChar = Serial.read();
 

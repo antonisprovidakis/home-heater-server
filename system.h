@@ -5,6 +5,11 @@ enum Phase {
 };
 
 typedef struct {
+  unsigned long int previousMillis;
+  unsigned long int currentMillis;
+} Timer;
+
+typedef struct {
   unsigned int id;
   unsigned long int heat;
   unsigned long int preserve;
@@ -12,6 +17,7 @@ typedef struct {
 } Profile;
 
 typedef struct {
+  Timer timer;
   bool enabled;
   Phase phase;
   int relayPin;
@@ -39,6 +45,9 @@ const unsigned long HOUR = 60 * MINUTE;
 const char* ENABLED_TYPE = "enabled";
 const char* PHASE_TYPE = "phase";
 
+void initTimer(Timer *timer) {
+  timer->previousMillis = 0;
+}
 
 void initProfile(Profile *p) {
   //  TODO: read from sd card
@@ -48,9 +57,9 @@ void initProfile(Profile *p) {
 
   // TODO: change to default profile on APP
   p->id = 1;
-  p->heat = 5 * SECOND;
-  p->preserve = 3 * SECOND;
-  p->rest = 2 * SECOND;
+  p->heat = 3 * SECOND;
+  p->preserve = 2 * SECOND;
+  p->rest = 1 * SECOND;
 }
 
 // DOMAIN-SPECIFIC
@@ -78,18 +87,12 @@ void updateProfile(Profile *p, char *nameToken, char *valToken) {
   }
 }
 
-void initSystem(System *sys) {
-  sys->enabled = true;
-  sys->relayPin = 7;
-  initProfile(&sys->p);
-}
 void turnOffRelay(int relayPin) {
   // HIGH = relay switch opens (current NOT passing)
   digitalWrite(LED_BUILTIN, LOW); // DEBUG
 
   //  digitalWrite(LED_BUILTIN, HIGH);
   //  digitalWrite(relayPin, HIGH);
-  Serial.println("turnOffRelay");
 }
 
 void turnOnRelay(int relayPin) {
@@ -98,28 +101,54 @@ void turnOnRelay(int relayPin) {
 
   //  digitalWrite(LED_BUILTIN, LOW);
   //  digitalWrite(relayPin, LOW);
-  Serial.println("turnOnRelay");
 }
 
 void disableSystem(System *sys) {
-  Serial.println("disableSystem");
   turnOffRelay(&sys->relayPin);
   sys->enabled = false;
 }
 
 void enableSystem(System *sys) {
-  Serial.println("enableSystem");
   sys->enabled = true;
 }
 
-void skipHeatPhase(System *sys) {
-  Serial.println("skipHeatPhase");
-  sys->phase = PRESERVE;
+void goToHeatPhase(System *sys) {
+  sys->phase = HEAT;
+  turnOnRelay(sys->relayPin);
 }
 
-void restartHeatPhase(System *sys) {
-  Serial.println("restartHeatPhase");
-  sys->phase = HEAT;
+void goToPreservePhase(System *sys) {
+  sys->phase = PRESERVE;
+  turnOnRelay(sys->relayPin);
+}
+
+void goToRestPhase(System *sys) {
+  sys->phase = REST;
+  turnOffRelay(sys->relayPin);
+}
+
+void goToPhase(Phase phase, System *sys) {
+  switch (phase) {
+    case HEAT:
+      goToHeatPhase(sys);
+      break;
+    case PRESERVE:
+      goToPreservePhase(sys);
+      break;
+    case REST:
+      goToRestPhase(sys);
+      break;
+    default:
+      Serial.println("Unknown phase:" + String(phase));
+  }
+}
+
+void initSystem(System *sys) {
+  initProfile(&sys->p);
+  initTimer(&sys->timer);
+  sys->relayPin = 7; // default relay pin
+  enableSystem(sys);
+  goToPhase(HEAT, sys); // default to Heat phase
 }
 
 Phase stringToPhaseType(char *typeAsString) {
@@ -156,7 +185,7 @@ void processHeaterFunctionMessage(char* message, System *sys) {
       else if (strcmp(nameToken, PHASE_TYPE) == 0) {
         Phase phase = stringToPhaseType(valToken);
         if (phase) {
-          sys->phase = phase;
+          goToPhase(phase, sys);
         }
       }
       else {
@@ -232,26 +261,28 @@ void parseMessage(System *sys) {
 
 void heaterLoop(System *sys) {
   if (sys->enabled) {
-    Serial.println("heater is enabled");
-    if (sys->phase == HEAT) {
-      turnOnRelay(sys->relayPin);
-      delay(sys->p.heat);
-      Serial.println("--- delay: " + String(sys->p.heat));
+    sys->timer.currentMillis = millis();
 
-      skipHeatPhase(sys);
+    // HEAT phase
+    if (sys->phase == HEAT && sys->timer.currentMillis - sys->timer.previousMillis >= sys->p.heat) {
+      // if heat interval has been pass, go to rest phase
+      sys->timer.previousMillis = sys->timer.currentMillis;
+      goToPhase(REST, sys);
     }
-    else {
-      turnOffRelay(sys->relayPin);
-      delay(sys->p.rest);
-      Serial.println("--- delay: " + String(sys->p.rest));
 
-      turnOnRelay(sys->relayPin);
-      delay(sys->p.preserve);
-      Serial.println("--- delay: " + String(sys->p.preserve));
+    // PRESERVE phase
+    if (sys->phase == PRESERVE && sys->timer.currentMillis - sys->timer.previousMillis >= sys->p.preserve) {
+      // if preserve interval has been pass, go to rest phase
+      sys->timer.previousMillis = sys->timer.currentMillis;
+      goToPhase(REST, sys);
     }
-  }
-  else {
-    Serial.println("heater is disabled");
+
+    // REST phase
+    if (sys->phase == REST && sys->timer.currentMillis - sys->timer.previousMillis >= sys->p.rest) {
+      // if rest interval has been pass, go to preserve phase
+      sys->timer.previousMillis = sys->timer.currentMillis;
+      goToPhase(PRESERVE, sys);
+    }
   }
 }
 

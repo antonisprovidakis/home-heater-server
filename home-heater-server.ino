@@ -1,7 +1,6 @@
 #include "bluetooth.h"
 #include "system.h"
 
-
 System sys;
 
 void setup() {
@@ -11,27 +10,20 @@ void setup() {
   }
   pinMode(LED_BUILTIN, OUTPUT);
 
-  Serial.println("--- Init ---");
+  Serial.println("--- Init System ---");
   initSystem(&sys);
-  enableSystem(&sys);
-  turnOnRelay(sys.relayPin);
   Serial.println("--- End init ---");
 }
 
 void loop() {
-  Serial.println("--- loop started ---");
   receiveMessage(&sys.mb);
 
   if (readyToParseMessage(&sys.mb)) {
-    Serial.println("--- in readyToParseMessage block ---");
     parseMessage(&sys);
     resetMessageBuffer(&sys.mb);
   }
 
-  
-  debugSystemState(&sys);
-  delay(15000);
-//  heaterLoop(&sys);
+  heaterLoop(&sys);
 }
 
 
