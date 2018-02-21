@@ -1,5 +1,5 @@
 enum Phase {
-  HEAT,
+  HEAT = 1,
   PRESERVE,
   REST
 };
@@ -56,6 +56,7 @@ void initProfile(Profile *p) {
 // DOMAIN-SPECIFIC
 void updateProfile(Profile *p, char *nameToken, char *valToken) {
   unsigned long int value = strtoul(valToken, NULL, 10);
+
   if (strcmp(nameToken, ID_TYPE) == 0) {
     p->id = (unsigned int) value;
     Serial.println("ProfileID changed to: : " + String(value));
@@ -73,8 +74,7 @@ void updateProfile(Profile *p, char *nameToken, char *valToken) {
     Serial.println("REST_INTERVAL changed to: : " + String(value));
   }
   else {
-    Serial.println("Unknown variable type: ");
-    Serial.println(nameToken);
+    Serial.println("Unknown variable type:" + String(nameToken));
   }
 }
 
@@ -123,13 +123,13 @@ void restartHeatPhase(System *sys) {
 }
 
 Phase stringToPhaseType(char *typeAsString) {
-  if (strcmp(typeAsString, "heat") == 0) {
+  if (strcmp(typeAsString, HEAT_TYPE) == 0) {
     return HEAT;
   }
-  else if (strcmp(typeAsString, "preserve") == 0) {
+  else if (strcmp(typeAsString, PRESERVE_TYPE) == 0) {
     return PRESERVE;
   }
-  else if (strcmp(typeAsString, "rest") == 0) {
+  else if (strcmp(typeAsString, REST_TYPE) == 0) {
     return REST;
   }
   else {
