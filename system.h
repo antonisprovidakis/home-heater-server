@@ -278,12 +278,6 @@ void processMessage(char* type, char* message, System *sys, boolean fromBT) {
   }
   else if (strcmp(type, REMOVE_DATA_FILE) == 0) {
     removeDataFile();
-    if (dataFileExists()) {
-      Serial.println("File exists");
-    }
-    else {
-      Serial.println("File not found.");
-    }
   }
   else {
     Serial.print(F("Unknown message type:"));
