@@ -8,3 +8,6 @@ Messages Form:
 
 # Related to Debugging - Return System's state
 <command=debug>
+
+# Removes data file
+<command=remove_data_file>
