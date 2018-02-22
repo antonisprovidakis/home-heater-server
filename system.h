@@ -23,6 +23,7 @@ typedef struct {
   int relayPin;
   MessageBuffer mb;
   Profile p;
+  boolean storageInit;
 } System;
 
 ///// Message Command Types /////
@@ -49,42 +50,16 @@ void initTimer(Timer *timer) {
   timer->previousMillis = 0;
 }
 
-void initProfile(Profile *p) {
-  //  TODO: read from sd card
-  // if data found on SD-Card
-  //   read from ther
-  // else
+Profile createDefaultProfile() {
+  // THIS IS THE DEFAULT PROFILE
+  Profile defaultProfile = {
+    .id = 1,
+    .heat = 105 * MINUTE,
+    .preserve = 2 * MINUTE,
+    .rest = 2 * MINUTE
+  };
 
-  // TODO: change to default profile on APP
-  p->id = 1;
-  p->heat = 3 * SECOND;
-  p->preserve = 2 * SECOND;
-  p->rest = 1 * SECOND;
-}
-
-// DOMAIN-SPECIFIC
-void updateProfile(Profile *p, char *nameToken, char *valToken) {
-  unsigned long int value = strtoul(valToken, NULL, 10);
-
-  if (strcmp(nameToken, ID_TYPE) == 0) {
-    p->id = (unsigned int) value;
-    Serial.println("ProfileID changed to: : " + String(value));
-  }
-  else if (strcmp(nameToken, HEAT_TYPE) == 0) {
-    p->heat = value;
-    Serial.println("HEAT_INTERVAL changed to: : " + String(value));
-  }
-  else if (strcmp(nameToken, PRESERVE_TYPE) == 0) {
-    p->preserve = value;
-    Serial.println("PRESERVE_INTERVAL changed to: : " + String(value));
-  }
-  else if (strcmp(nameToken, REST_TYPE) == 0) {
-    p->rest = value;
-    Serial.println("REST_INTERVAL changed to: : " + String(value));
-  }
-  else {
-    Serial.println("Unknown variable type:" + String(nameToken));
-  }
+  return defaultProfile;
 }
 
 void turnOffRelay(int relayPin) {
@@ -110,6 +85,21 @@ void disableSystem(System *sys) {
 
 void enableSystem(System *sys) {
   sys->enabled = true;
+}
+
+Phase stringToPhaseType(char *typeAsString) {
+  if (strcmp(typeAsString, HEAT_TYPE) == 0) {
+    return HEAT;
+  }
+  else if (strcmp(typeAsString, PRESERVE_TYPE) == 0) {
+    return PRESERVE;
+  }
+  else if (strcmp(typeAsString, REST_TYPE) == 0) {
+    return REST;
+  }
+  else {
+    return NULL;
+  }
 }
 
 void goToHeatPhase(System *sys) {
@@ -140,29 +130,6 @@ void goToPhase(Phase phase, System *sys) {
       break;
     default:
       Serial.println("Unknown phase:" + String(phase));
-  }
-}
-
-void initSystem(System *sys) {
-  initProfile(&sys->p);
-  initTimer(&sys->timer);
-  sys->relayPin = 7; // default relay pin
-  enableSystem(sys);
-  goToPhase(HEAT, sys); // default to Heat phase
-}
-
-Phase stringToPhaseType(char *typeAsString) {
-  if (strcmp(typeAsString, HEAT_TYPE) == 0) {
-    return HEAT;
-  }
-  else if (strcmp(typeAsString, PRESERVE_TYPE) == 0) {
-    return PRESERVE;
-  }
-  else if (strcmp(typeAsString, REST_TYPE) == 0) {
-    return REST;
-  }
-  else {
-    return NULL;
   }
 }
 
@@ -197,14 +164,76 @@ void processHeaterFunctionMessage(char* message, System *sys) {
   }
 }
 
-void processProfileActivationMessage(char* message, Profile *p) {
+
+// DOMAIN-SPECIFIC
+void updateProfile(Profile *p, char *nameToken, char *valToken) {
+  unsigned long int value = strtoul(valToken, NULL, 10);
+
+  if (strcmp(nameToken, ID_TYPE) == 0) {
+    p->id = (unsigned int) value;
+    Serial.println("ProfileID changed to: : " + String(value));
+  }
+  else if (strcmp(nameToken, HEAT_TYPE) == 0) {
+    p->heat = value;
+    Serial.println("HEAT_INTERVAL changed to: : " + String(value));
+  }
+  else if (strcmp(nameToken, PRESERVE_TYPE) == 0) {
+    p->preserve = value;
+    Serial.println("PRESERVE_INTERVAL changed to: : " + String(value));
+  }
+  else if (strcmp(nameToken, REST_TYPE) == 0) {
+    p->rest = value;
+    Serial.println("REST_INTERVAL changed to: : " + String(value));
+  }
+  else {
+    Serial.println("Unknown variable type:" + String(nameToken));
+  }
+}
+
+boolean isStorageInit(System *sys) {
+  if (!sys->storageInit) {
+    Serial.println(F("Storage is not initialized..."));
+    return false;
+  }
+
+  Serial.println(F("Storage initialized..."));
+  return true;
+}
+
+void writeProfileDataToFile(File *file, Profile *p) {
+  // write a special symbol '~' at the end of file to ensure file integrity
+  file->print("id=" + String(p->id) + ",heat=" + String(p->heat)
+              + ",preserve=" + String(p->preserve) + ",preserve="
+              + String(p->preserve) + FILE_OK_SYMBOL);
+}
+
+boolean saveProfileData(System *sys) {
+  if (!isStorageInit(sys)) {
+    return false;
+  }
+
+  removeDataFile();
+
+  File file = createDataFile();
+
+  if (!file) {
+    return false;
+  }
+
+  writeProfileDataToFile(&file, &sys->p);
+  closeFile(&file);
+
+  return true;
+}
+
+void processProfileUpdateMessage(char* message, System *sys) {
   char *nameToken = strtok(message, EQUALS);
 
   while (nameToken)  {
     char *valToken = strtok(NULL, COMMA);
 
     if (valToken) {
-      updateProfile(p, nameToken, valToken);
+      updateProfile(&sys->p, nameToken, valToken);
     }
 
     nameToken = strtok(NULL, EQUALS);
@@ -212,22 +241,25 @@ void processProfileActivationMessage(char* message, Profile *p) {
 }
 
 void debugSystemState(System *sys) {
-  Serial.println("\n--- DEBUG ---");
+  Serial.println(F("\n--- DEBUG ---"));
   Serial.println("System Enabled:" + String(sys->enabled));
   Serial.println("System Phase:" + String(sys->phase));
   Serial.println("Id:" + String(sys->p.id) );
   Serial.println("Heat:" + String(sys->p.heat));
   Serial.println("Preserve:" + String(sys->p.preserve));
   Serial.println("Rest:" + String(sys->p.rest));
-  Serial.println("--- END DEBUG ---\n");
+  Serial.println(F("--- END DEBUG ---\n"));
 }
 
-void processMessage(char* type, char* message, System *sys) {
+void processMessage(char* type, char* message, System *sys, boolean fromBT) {
   if (strcmp(type, HEATER_FUNCTION) == 0) {
     processHeaterFunctionMessage(message, sys);
   }
   else if (strcmp(type, PROFILE_UPDATE) == 0) {
-    processProfileActivationMessage(message, &sys->p);
+    processProfileUpdateMessage(message, sys);
+    if (fromBT) {
+      saveProfileData(sys);
+    }
   }
   else if (strcmp(type, DEBUG) == 0) {
     debugSystemState(sys);
@@ -235,6 +267,64 @@ void processMessage(char* type, char* message, System *sys) {
   else {
     Serial.println("Unknown message type:" + String(type));
   }
+}
+
+boolean updateProfileFromDataFile(System *sys) {
+  File file = openDataFile();
+
+  if (!file) {
+    return false;
+  }
+
+  if (!isDataFileOK(&file)) {
+    return false;
+  }
+
+  String content = readFileContent(&file);
+  closeFile(&file);
+
+  content.remove(content.length() - 1); // remove integrity character: "~"
+
+  char *temp = content.c_str();
+  char message[strlen(temp) + 1];
+  strcpy(message, temp);
+
+  processMessage(PROFILE_UPDATE, message, sys, false);
+
+  return true;
+}
+
+void initProfile(System *sys) {
+  Serial.println(F("initProfile"));
+  Profile *p = &sys->p;
+
+  if (!isStorageInit(sys)) {
+    *p = createDefaultProfile();
+    Serial.println(F("Default profile loaded. Not saved"));
+    return;
+  }
+
+  if (!dataFileExists()) {
+    *p = createDefaultProfile();
+    saveProfileData(sys);
+    Serial.println(F("Default profile loaded. Saved to SD-Card"));
+    return;
+  }
+
+  // init profile from sd card
+  updateProfileFromDataFile(sys);
+  Serial.println(F("Profile loaded from SD-Card"));
+}
+
+void initSystem(System * sys) {
+  Serial.println(F("--- Init System ---"));
+  sys->storageInit = initializeSD();
+  initProfile(sys);
+  initTimer(&sys->timer);
+  sys->relayPin = 7; // default relay pin
+  enableSystem(sys);
+  goToPhase(HEAT, sys); // default to Heat phase
+  Serial.println(F("--- End init ---"));
 }
 
 // Message of form: <command:commandType,name1=value1,name2=value2>
@@ -254,12 +344,12 @@ void parseMessage(System *sys) {
       char* messageWithoutCommandType = strchr(sys->mb.message, COMMA[0]) + 1;
       strcpy(message, messageWithoutCommandType);
 
-      processMessage(commandType, message, sys);
+      processMessage(commandType, message, sys, true);
     }
   }
 }
 
-void heaterLoop(System *sys) {
+void heaterLoop(System * sys) {
   if (sys->enabled) {
     sys->timer.currentMillis = millis();
 
@@ -285,5 +375,4 @@ void heaterLoop(System *sys) {
     }
   }
 }
-
 

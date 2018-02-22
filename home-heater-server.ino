@@ -1,4 +1,7 @@
+#include <SD.h>
+#include <SPI.h>
 #include "bluetooth.h"
+#include "sd_card.h"
 #include "system.h"
 
 System sys;
@@ -10,9 +13,7 @@ void setup() {
   }
   pinMode(LED_BUILTIN, OUTPUT);
 
-  Serial.println("--- Init System ---");
   initSystem(&sys);
-  Serial.println("--- End init ---");
 }
 
 void loop() {
@@ -23,7 +24,7 @@ void loop() {
     resetMessageBuffer(&sys.mb);
   }
 
-  heaterLoop(&sys);
+//  heaterLoop(&sys);
 }
 
 

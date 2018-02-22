@@ -1,0 +1,2 @@
+# "~" char is used for file integrity
+id=1,heat=4294967295,preserve=4294967295,rest=4294967295~
