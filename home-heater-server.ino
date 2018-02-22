@@ -11,7 +11,6 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB
   }
-  pinMode(LED_BUILTIN, OUTPUT);
 
   initSystem(&sys);
 }
@@ -24,7 +23,7 @@ void loop() {
     resetMessageBuffer(&sys.mb);
   }
 
-//  heaterLoop(&sys);
+  heaterLoop(&sys);
 }
 
 

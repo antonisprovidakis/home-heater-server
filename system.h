@@ -19,7 +19,6 @@ typedef struct {
 typedef struct {
   bool enabled;
   Phase phase;
-  int relayPin;
   boolean storageInit;
   Timer timer;
   MessageBuffer mb;
@@ -47,6 +46,8 @@ const unsigned long HOUR = 60 * MINUTE;
 const char* ENABLED_TYPE = "enabled";
 const char* PHASE_TYPE = "phase";
 
+const int RELAY_PIN = 7;
+
 void initTimer(Timer *timer) {
   timer->previousMillis = 0;
 }
@@ -64,23 +65,15 @@ Profile createDefaultProfile() {
 }
 
 void turnOffRelay(int relayPin) {
-  // HIGH = relay switch opens (current NOT passing)
-  digitalWrite(LED_BUILTIN, LOW); // DEBUG
-
-  //  digitalWrite(LED_BUILTIN, HIGH);
-  //  digitalWrite(relayPin, HIGH);
+  digitalWrite(relayPin, HIGH); // HIGH = relay switch opens (current NOT passing)
 }
 
 void turnOnRelay(int relayPin) {
-  // LOW = relay switch closes (current passing)
-  digitalWrite(LED_BUILTIN, HIGH); // DEBUG
-
-  //  digitalWrite(LED_BUILTIN, LOW);
-  //  digitalWrite(relayPin, LOW);
+  digitalWrite(relayPin, LOW); // LOW = relay switch closes (current passing)
 }
 
 void disableSystem(System *sys) {
-  turnOffRelay(&sys->relayPin);
+  turnOffRelay(RELAY_PIN);
   sys->enabled = false;
   Serial.println(F("System disabled..."));
 }
@@ -107,17 +100,17 @@ Phase stringToPhaseType(char *typeAsString) {
 
 void goToHeatPhase(System *sys) {
   sys->phase = HEAT;
-  turnOnRelay(sys->relayPin);
+  turnOnRelay(RELAY_PIN);
 }
 
 void goToPreservePhase(System *sys) {
   sys->phase = PRESERVE;
-  turnOnRelay(sys->relayPin);
+  turnOnRelay(RELAY_PIN);
 }
 
 void goToRestPhase(System *sys) {
   sys->phase = REST;
-  turnOffRelay(sys->relayPin);
+  turnOffRelay(RELAY_PIN);
 }
 
 void goToPhase(Phase phase, System *sys) {
@@ -285,7 +278,7 @@ void processMessage(char* type, char* message, System *sys, boolean fromBT) {
   }
   else if (strcmp(type, REMOVE_DATA_FILE) == 0) {
     removeDataFile();
-    if(dataFileExists()){
+    if (dataFileExists()) {
       Serial.println("File exists");
     }
     else {
@@ -343,12 +336,12 @@ void initProfile(System *sys) {
   Serial.println(F("Profile loaded from SD-Card"));
 }
 
-void initSystem(System * sys) {
+void initSystem(System *sys) {
   Serial.println(F("--- Init System ---"));
   sys->storageInit = initializeSD();
   initProfile(sys);
   initTimer(&sys->timer);
-  sys->relayPin = 7; // default relay pin
+  pinMode(RELAY_PIN, OUTPUT);
   enableSystem(sys);
   goToPhase(HEAT, sys); // defaults to Heat phase
   Serial.println(F("--- End System Init ---"));
