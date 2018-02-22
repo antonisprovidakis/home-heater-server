@@ -204,7 +204,7 @@ void writeProfileDataToFile(File *file, Profile *p) {
   // write a special symbol '~' at the end of file to ensure file integrity
   file->print("id=" + String(p->id) + ",heat=" + String(p->heat)
               + ",preserve=" + String(p->preserve) + ",preserve="
-              + String(p->preserve) + FILE_OK_SYMBOL);
+              + String(p->preserve) + FILE_INTEGRITY_SYMBOL);
 }
 
 boolean saveProfileData(System *sys) {

@@ -1,4 +1,4 @@
-const char* FILE_OK_SYMBOL = "~";
+const char* FILE_INTEGRITY_SYMBOL = "~";
 const char* DATA_FILE_NAME = "data.txt";
 
 boolean initializeSD() {
@@ -95,7 +95,7 @@ String readFileContent(File *file) {
 
 boolean isDataFileOK(File *file) {
   if (file->seek(file->size() - 1)) {
-    if ( ((char)file->peek()) == FILE_OK_SYMBOL[0]) {
+    if ( ((char)file->peek()) == FILE_INTEGRITY_SYMBOL[0]) {
       file->seek(0); // return index to start of file
       Serial.println(F("file OK"));
       return true;
