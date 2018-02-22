@@ -53,8 +53,7 @@ boolean writeToFile(File *file, char *text) {
     Serial.println(F("Couldn't write to file"));
     return false;
   }
-
-  Serial.println("Writing to file: " + String(text));
+ 
   file->println(text);
   return true;
 }
@@ -97,12 +96,10 @@ boolean isDataFileOK(File *file) {
   if (file->seek(file->size() - 1)) {
     if ( ((char)file->peek()) == FILE_INTEGRITY_SYMBOL[0]) {
       file->seek(0); // return index to start of file
-      Serial.println(F("file OK"));
       return true;
     }
   }
 
-  Serial.println(F("file NOT OK"));
   return false;
 }
 

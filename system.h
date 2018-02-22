@@ -17,19 +17,20 @@ typedef struct {
 } Profile;
 
 typedef struct {
-  Timer timer;
   bool enabled;
   Phase phase;
   int relayPin;
+  boolean storageInit;
+  Timer timer;
   MessageBuffer mb;
   Profile p;
-  boolean storageInit;
 } System;
 
 ///// Message Command Types /////
 const char* HEATER_FUNCTION = "HF";
 const char* PROFILE_UPDATE = "PU";
 const char* DEBUG = "debug";
+const char* REMOVE_DATA_FILE = "remove_data_file";
 
 ///// Interval Type Constants /////
 const char* ID_TYPE = "id";
@@ -81,10 +82,12 @@ void turnOnRelay(int relayPin) {
 void disableSystem(System *sys) {
   turnOffRelay(&sys->relayPin);
   sys->enabled = false;
+  Serial.println(F("System disabled..."));
 }
 
 void enableSystem(System *sys) {
   sys->enabled = true;
+  Serial.println(F("System enabled..."));
 }
 
 Phase stringToPhaseType(char *typeAsString) {
@@ -129,7 +132,8 @@ void goToPhase(Phase phase, System *sys) {
       goToRestPhase(sys);
       break;
     default:
-      Serial.println("Unknown phase:" + String(phase));
+      Serial.print(F("Unknown phase:"));
+      Serial.println(phase);
   }
 }
 
@@ -156,7 +160,8 @@ void processHeaterFunctionMessage(char* message, System *sys) {
         }
       }
       else {
-        Serial.println("Unknown variable:" + String(nameToken));
+        Serial.print(F("Unknown variable:"));
+        Serial.println(nameToken);
       }
     }
 
@@ -171,40 +176,45 @@ void updateProfile(Profile *p, char *nameToken, char *valToken) {
 
   if (strcmp(nameToken, ID_TYPE) == 0) {
     p->id = (unsigned int) value;
-    Serial.println("ProfileID changed to: : " + String(value));
+    Serial.print(F("PROFILE_ID changed to:"));
+    Serial.println(value);
   }
   else if (strcmp(nameToken, HEAT_TYPE) == 0) {
     p->heat = value;
-    Serial.println("HEAT_INTERVAL changed to: : " + String(value));
+    Serial.print(F("HEAT_INTERVAL changed to:"));
+    Serial.println(value);
   }
   else if (strcmp(nameToken, PRESERVE_TYPE) == 0) {
     p->preserve = value;
-    Serial.println("PRESERVE_INTERVAL changed to: : " + String(value));
+    Serial.print(F("PRESERVE_INTERVAL changed to:"));
+    Serial.println(value);
   }
   else if (strcmp(nameToken, REST_TYPE) == 0) {
     p->rest = value;
-    Serial.println("REST_INTERVAL changed to: : " + String(value));
+    Serial.print(F("REST_INTERVAL changed to:"));
+    Serial.println(value);
   }
   else {
-    Serial.println("Unknown variable type:" + String(nameToken));
+    Serial.print(F("Unknown variable type:"));
+    Serial.println(nameToken);
   }
 }
 
 boolean isStorageInit(System *sys) {
-  if (!sys->storageInit) {
-    Serial.println(F("Storage is not initialized..."));
-    return false;
-  }
-
-  Serial.println(F("Storage initialized..."));
-  return true;
+  return sys->storageInit;
 }
 
 void writeProfileDataToFile(File *file, Profile *p) {
+  file->print(F("id="));
+  file->print(p->id);
+  file->print(F(",heat="));
+  file->print(p->heat);
+  file->print(F(",preserve="));
+  file->print(p->preserve);
+  file->print(F(",rest="));
+  file->print(p->rest);
   // write a special symbol '~' at the end of file to ensure file integrity
-  file->print("id=" + String(p->id) + ",heat=" + String(p->heat)
-              + ",preserve=" + String(p->preserve) + ",preserve="
-              + String(p->preserve) + FILE_INTEGRITY_SYMBOL);
+  file->print(FILE_INTEGRITY_SYMBOL);
 }
 
 boolean saveProfileData(System *sys) {
@@ -242,12 +252,21 @@ void processProfileUpdateMessage(char* message, System *sys) {
 
 void debugSystemState(System *sys) {
   Serial.println(F("\n--- DEBUG ---"));
-  Serial.println("System Enabled:" + String(sys->enabled));
-  Serial.println("System Phase:" + String(sys->phase));
-  Serial.println("Id:" + String(sys->p.id) );
-  Serial.println("Heat:" + String(sys->p.heat));
-  Serial.println("Preserve:" + String(sys->p.preserve));
-  Serial.println("Rest:" + String(sys->p.rest));
+
+  Serial.print(F("Storage Initialized:"));
+  Serial.println(sys->storageInit);
+  Serial.print(F("System Enabled:"));
+  Serial.println(sys->enabled);
+  Serial.print(F("System Phase:"));
+  Serial.println(sys->phase);
+  Serial.print(F("Id:"));
+  Serial.println(sys->p.id);
+  Serial.print(F("Heat:"));
+  Serial.println(sys->p.heat);
+  Serial.print(F("Preserve:"));
+  Serial.println(sys->p.preserve);
+  Serial.print(F("Rest:"));
+  Serial.println(sys->p.rest);
   Serial.println(F("--- END DEBUG ---\n"));
 }
 
@@ -264,8 +283,18 @@ void processMessage(char* type, char* message, System *sys, boolean fromBT) {
   else if (strcmp(type, DEBUG) == 0) {
     debugSystemState(sys);
   }
+  else if (strcmp(type, REMOVE_DATA_FILE) == 0) {
+    removeDataFile();
+    if(dataFileExists()){
+      Serial.println("File exists");
+    }
+    else {
+      Serial.println("File not found.");
+    }
+  }
   else {
-    Serial.println("Unknown message type:" + String(type));
+    Serial.print(F("Unknown message type:"));
+    Serial.println(type);
   }
 }
 
@@ -295,12 +324,11 @@ boolean updateProfileFromDataFile(System *sys) {
 }
 
 void initProfile(System *sys) {
-  Serial.println(F("initProfile"));
   Profile *p = &sys->p;
 
   if (!isStorageInit(sys)) {
     *p = createDefaultProfile();
-    Serial.println(F("Default profile loaded. Not saved"));
+    Serial.println(F("Default profile loaded. Storage not init!"));
     return;
   }
 
@@ -311,7 +339,6 @@ void initProfile(System *sys) {
     return;
   }
 
-  // init profile from sd card
   updateProfileFromDataFile(sys);
   Serial.println(F("Profile loaded from SD-Card"));
 }
@@ -323,8 +350,8 @@ void initSystem(System * sys) {
   initTimer(&sys->timer);
   sys->relayPin = 7; // default relay pin
   enableSystem(sys);
-  goToPhase(HEAT, sys); // default to Heat phase
-  Serial.println(F("--- End init ---"));
+  goToPhase(HEAT, sys); // defaults to Heat phase
+  Serial.println(F("--- End System Init ---"));
 }
 
 // Message of form: <command:commandType,name1=value1,name2=value2>
