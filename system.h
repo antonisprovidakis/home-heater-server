@@ -29,6 +29,7 @@ typedef struct {
 const char* HEATER_FUNCTION = "HF";
 const char* PROFILE_UPDATE = "PU";
 const char* DEBUG = "debug";
+const char* CHECK_ENABLED = "check_enabled";
 const char* REMOVE_DATA_FILE = "remove_data_file";
 
 ///// Interval Type Constants /////
@@ -263,6 +264,10 @@ void debugSystemState(System *sys) {
   Serial.println(F("--- END DEBUG ---\n"));
 }
 
+void checkEnabled(System *sys) {
+  Serial.println(sys->enabled);
+}
+
 void processMessage(char* type, char* message, System *sys, boolean fromBT) {
   if (strcmp(type, HEATER_FUNCTION) == 0) {
     processHeaterFunctionMessage(message, sys);
@@ -275,6 +280,9 @@ void processMessage(char* type, char* message, System *sys, boolean fromBT) {
   }
   else if (strcmp(type, DEBUG) == 0) {
     debugSystemState(sys);
+  }
+  else if (strcmp(type, CHECK_ENABLED) == 0) {
+    checkEnabled(sys);
   }
   else if (strcmp(type, REMOVE_DATA_FILE) == 0) {
     removeDataFile();
