@@ -11,3 +11,6 @@ Messages Form:
 
 # Removes data file
 <command=remove_data_file>
+
+# check if heater is enabled
+<command=check_enabled>
