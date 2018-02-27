@@ -265,7 +265,9 @@ void debugSystemState(System *sys) {
 }
 
 void checkEnabled(System *sys) {
-  Serial.println(sys->enabled);
+  Serial.print(F("check_enabled="));
+  Serial.print(sys->enabled);
+  Serial.print(F("~"));
 }
 
 void processMessage(char* type, char* message, System *sys, boolean fromBT) {
