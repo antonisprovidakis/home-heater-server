@@ -49,9 +49,6 @@ const char* PHASE_TYPE = "phase";
 
 const int RELAY_PIN = 7;
 
-void initTimer(Timer *timer) {
-  timer->previousMillis = millis(); // baseline time
-}
 
 Profile createDefaultProfile() {
   // THIS IS THE DEFAULT PROFILE
@@ -118,7 +115,6 @@ void goToPhase(Phase phase, System *sys) {
   switch (phase) {
     case HEAT:
       goToHeatPhase(sys);
-      initTimer(sys->timer);
       break;
     case PRESERVE:
       goToPreservePhase(sys);
@@ -130,6 +126,8 @@ void goToPhase(Phase phase, System *sys) {
       Serial.print(F("Unknown phase:"));
       Serial.println(phase);
   }
+
+  sys->timer.previousMillis = millis();
 }
 
 void processHeaterFunctionMessage(char* message, System *sys) {
