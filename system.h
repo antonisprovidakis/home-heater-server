@@ -50,7 +50,7 @@ const char* PHASE_TYPE = "phase";
 const int RELAY_PIN = 7;
 
 void initTimer(Timer *timer) {
-  timer->previousMillis = 0;
+  timer->previousMillis = millis(); // baseline time
 }
 
 Profile createDefaultProfile() {
@@ -118,6 +118,7 @@ void goToPhase(Phase phase, System *sys) {
   switch (phase) {
     case HEAT:
       goToHeatPhase(sys);
+      initTimer(sys->timer);
       break;
     case PRESERVE:
       goToPreservePhase(sys);
@@ -151,6 +152,10 @@ void processHeaterFunctionMessage(char* message, System *sys) {
         Phase phase = stringToPhaseType(valToken);
         if (phase) {
           goToPhase(phase, sys);
+        }
+        else{
+          Serial.print(F("goToPhase() didn't run for input phase:"));
+          Serial.println(valToken);
         }
       }
       else {
@@ -207,7 +212,7 @@ void writeProfileDataToFile(File *file, Profile *p) {
   file->print(p->preserve);
   file->print(F(",rest="));
   file->print(p->rest);
-  // write a special symbol '~' at the end of file to ensure file integrity
+  // write special symbol '~' at the end of file to ensure file integrity
   file->print(FILE_INTEGRITY_SYMBOL);
 }
 
@@ -344,7 +349,6 @@ void initSystem(System *sys) {
   Serial.println(F("--- Init System ---"));
   sys->storageInit = initializeSD();
   initProfile(sys);
-  initTimer(&sys->timer);
   pinMode(RELAY_PIN, OUTPUT);
   enableSystem(sys);
   goToPhase(HEAT, sys); // defaults to Heat phase
