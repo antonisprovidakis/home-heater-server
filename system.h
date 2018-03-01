@@ -126,8 +126,6 @@ void goToPhase(Phase phase, System *sys) {
       Serial.print(F("Unknown phase:"));
       Serial.println(phase);
   }
-
-  sys->timer.previousMillis = millis();
 }
 
 void processHeaterFunctionMessage(char* message, System *sys) {
@@ -141,6 +139,8 @@ void processHeaterFunctionMessage(char* message, System *sys) {
 
         if (enabled) {
           enableSystem(sys);
+          sys->timer.previousMillis = millis();
+          goToPhase(sys->phase, sys); // continue from the phase it was before being disabled
         }
         else {
           disableSystem(sys);
@@ -149,6 +149,7 @@ void processHeaterFunctionMessage(char* message, System *sys) {
       else if (strcmp(nameToken, PHASE_TYPE) == 0) {
         Phase phase = stringToPhaseType(valToken);
         if (phase) {
+          sys->timer.previousMillis = millis();
           goToPhase(phase, sys);
         }
         else{
@@ -349,6 +350,7 @@ void initSystem(System *sys) {
   initProfile(sys);
   pinMode(RELAY_PIN, OUTPUT);
   enableSystem(sys);
+  sys->timer.previousMillis = millis();
   goToPhase(HEAT, sys); // defaults to Heat phase
   Serial.println(F("--- End System Init ---"));
 }
