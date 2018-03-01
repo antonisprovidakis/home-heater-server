@@ -1,0 +1,1 @@
+1) Timer feature - Disable timer after some specified time has passed.
