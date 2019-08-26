@@ -1,29 +1,7 @@
-# README #
+<p align="center">
+  <img alt="home-heater-server icon" src="https://user-images.githubusercontent.com/15313363/63728237-a8c43e80-c86b-11e9-8923-d17fe74ff249.png" width="256">
+</p>
 
-This README would normally document whatever steps are necessary to get your application up and running.
 
-### What is this repository for? ###
-
-* Server (Arduino) implementation of our home heater system
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
-
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+## About
+Home Heater server app of my house's custom heating system. Implemented on Arduino board. Communication with the client app is accomplished through Bluetooth.
